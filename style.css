@@ -1,0 +1,197 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Pacifico&display=swap');
+
+
+
+body {
+    font-family: 'Dancing Script', cursive;
+    font-size: 135%;
+    color: ivory;
+    padding: 0;
+    margin: 0;
+    background-color: #86ac92;
+}
+ul {
+    padding: 0;
+    margin: 0;
+}
+li {
+    list-style-type: none;
+}
+ul li a {
+    text-align: start;
+    font-size: 20px;
+    
+}
+a { 
+ text-decoration: none;
+ color: rgb(255, 247, 247);
+}
+
+    
+
+h2{
+    text-transform: uppercase;
+    font-size: 1.2em;
+    font-family: "Dancing Script";
+    text-align: center;
+    padding: 50
+    
+}
+a {
+      text-align: center;
+      font-size: 1.2em;
+}
+header img {
+    padding: 0px -25%;
+    margin: 0px 0%
+    
+}
+/* **********NAVBAR************** */
+nav{
+    overflow: hidden;
+    background-color:#86ac92;
+    position: fixed;
+    width: 100%;
+    opacity: 1;
+    text-shadow: 1px 3px 2px black;
+    }
+header li{
+    float: right;
+    font-size: 1.3em;
+}
+header li a {
+    text-decoration: none;
+    display: block;
+    text-align: center;
+    padding: 18px 16px;
+    font-size: 0.8em;
+    
+}
+#logo {
+    float: left;
+    
+
+    
+}
+
+/* *************image principale************ */
+
+#imagePrincipale {
+    padding-top: 60px;
+    background: url(media/Living-in-Lisbon.jpg) no-repeat fixed 50% 50%;
+    background-size: cover;
+    height: 799px;
+}
+h1 {
+    font-family: "Dancing Script";
+    text-align: center;
+    color: #ffffff;
+    font-size: 6em;
+    margin-top: 200px;
+    text-shadow: 1px 3px 2px black;
+}
+
+h3 {
+    text-align: center;
+    font-size: 3em;
+    margin-top: 100px;
+    text-shadow: 1px 3px 2px black;
+
+}
+
+
+/* *******************PRESENTATION********************* */
+
+#presentation {
+    background-color: #86ac92;
+    padding: 10px 0px 100px 0;
+}
+#textintro {
+    padding: 0px 20%;
+}
+#prestations {
+     display: flex;
+     flex-wrap: wrap;
+     justify-content: space-between;
+     padding: 30px 10%;
+}
+ section h2 {
+    text-shadow: 1px 3px 2px black ;
+}
+.imagesPrestations h4 {
+    text-align: center;
+    text-shadow: 1px 3px 2px black ;
+    margin: 15px;
+    font-weight: bold;
+}
+.imagesPrestations img {
+    border-radius: 30px;
+    -webkit-box-shadow: 13px 21px 16px 4px rgba(0,0,0,0.64); 
+     box-shadow: 13px 21px 16px 4px rgba(0,0,0,0.64);
+}
+.imagesPrestations img:hover {
+    opacity: 0.5;
+    transform: scale(1.05);
+    transition: 0.6s ease-in-out;
+
+}
+/* ******************** footer *********************** */
+footer {
+    background-color: rgb(68, 42, 8);
+    color: blanchedalmond;
+    padding: 20px 0 10px 0;
+    text-align: center;
+}
+form {
+    margin: 0 auto;
+    max-width: 900px;
+}
+input, textarea, button {
+    border: none;
+    width: 55%;
+    padding: 15px 10px;
+    margin: 1px 0;
+    font-size: 1.2em;
+    font-family: "Dancing Script";
+    border-radius: 8px;
+}
+textarea {
+    height: 120px;
+}
+button {
+    font-size: 1.5em;
+}
+button:hover {
+    background-color: chocolate;
+    cursor: pointer;
+    transition: 0.3s ease-in-out;
+
+}
+
+#copyrightEticons  {
+    display: flex;
+    margin-bottom: 20px;
+    padding: 0 10%;
+
+}
+#copyright {
+    width: 50%;
+    text-align: left;
+}
+#icons {
+    width: 50%;
+    text-align: right;
+    margin: 1px;
+    padding: 50px;
+}
+#icons a {
+    display: inline-block;
+    margin: 0 15px;
+}
+
+    
+
+
+
+    
+
