@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GIBZ — Studio Visual</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050507;
+    --bg2:#0C0C10;
+    --panel:#0F0F14CC;
+    --panel2:#15151DE6;
+    --line:rgba(255,255,255,0.08);
+    --line2:rgba(255,255,255,0.14);
+    --text:#F5F5F7;
+    --dim:#7A7A85;
+    --dim2:#4A4A55;
+    --accent:#D4FF32;
+    --accent2:#A8FF00;
+    --accent-glow:rgba(212,255,50,0.4);
+    --danger:#FF2D78;
+    --radius:14px;
+    --radius-sm:9px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;background:var(--bg);overflow:hidden;font-family:'Space Grotesk',sans-serif;color:var(--text);user-select:none}
+  ::-webkit-scrollbar{width:4px;height:4px}
+  ::-webkit-scrollbar-thumb{background:var(--line2);border-radius:99px}
+
+  /* CANVAS */
+  #canvasWrap{position:fixed;inset:0;z-index:1;transition:transform .08s linear;will-change:transform}
+  #stage{display:block;width:100%;height:100%;background:var(--bg)}
+  #overlayFX{position:fixed;inset:0;z-index:2;pointer-events:none}
+  #vignette{position:absolute;inset:0;background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.65) 100%);opacity:0.8}
+  #scanlines{position:absolute;inset:0;opacity:0;background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 3px)}
+  #chroma{position:absolute;inset:0;opacity:0;mix-blend-mode:screen}
+
+  /* TOP BAR - Windows Titlebar style */
+  #titlebar{position:fixed;top:0;left:0;right:0;height:36px;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 16px;background:rgba(8,8,10,0.9);border-bottom:1px solid var(--line);backdrop-filter:blur(16px);-webkit-app-region:drag}
+  #titlebar .brand{display:flex;align-items:center;gap:10px}
+  #titlebar .logo{width:22px;height:22px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:'Syne';font-weight:800;font-size:11px;color:#000;border-radius:4px}
+  #titlebar .appname{font-family:'Syne';font-weight:800;letter-spacing:0.04em;font-size:13px}
+  #titlebar .appname span{color:var(--accent)}
+  #titlebar .win-controls{display:flex;gap:6px;-webkit-app-region:no-drag}
+  .win-btn{width:28px;height:22px;border:1px solid transparent;background:transparent;color:var(--dim);display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:4px;font-size:11px}
+  .win-btn:hover{background:rgba(255,255,255,0.06);color:var(--text)}
+  .win-btn.close:hover{background:#FF2D55;color:white}
+
+  /* HUD TOP LEFT */
+  #hud{position:fixed;top:52px;left:18px;z-index:20;pointer-events:none;display:flex;flex-direction:column;gap:10px}
+  #hud-main{background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(20px);border-radius:var(--radius);padding:14px 16px;min-width:210px}
+  #hud-main .word{font-family:'Syne';font-weight:800;font-size:22px;letter-spacing:-0.02em;line-height:1}
+  #hud-main .sub{font-family:'JetBrains Mono';font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dim);margin-top:4px}
+  #hud-status{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+  .dot{width:7px;height:7px;background:var(--dim2);border-radius:50%;transition:all .3s}
+  .dot.live{background:var(--accent);box-shadow:0 0 12px var(--accent-glow);animation:pulse 1.2s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(0.85)}}
+  #statusText{font-family:'JetBrains Mono';font-size:10px;color:var(--dim);letter-spacing:0.04em}
+  #miniViz{width:100%;height:28px;margin-top:10px;opacity:0.8}
+  #beatIndicator{width:6px;height:6px;border-radius:50%;background:var(--danger);opacity:0;transition:opacity .05s;margin-left:auto}
+  #beatIndicator.hit{opacity:1;box-shadow:0 0 10px var(--danger)}
+
+  #statsBar{position:fixed;top:52px;right:18px;z-index:20;display:flex;gap:8px;pointer-events:none}
+  .stat-chip{background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(16px);border-radius:99px;padding:6px 12px;font-family:'JetBrains Mono';font-size:9px;color:var(--dim);letter-spacing:0.06em;display:flex;align-items:center;gap:6px}
+  .stat-chip b{color:var(--text);font-weight:700}
+  .stat-chip.accent{border-color:rgba(212,255,50,0.25);color:var(--accent)}
+
+  /* INTRO - Full premium */
+  #intro{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg);transition:opacity .7s cubic-bezier(.8,0,.2,1), transform .7s cubic-bezier(.8,0,.2,1)}
+  #intro.hidden{opacity:0;pointer-events:none;transform:scale(1.02)}
+  #intro-bg{position:absolute;inset:0;overflow:hidden}
+  #intro-bg canvas{width:100%;height:100%}
+  #intro-content{position:relative;z-index:2;width:min(680px,94vw);display:flex;flex-direction:column;align-items:center;text-align:center}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(212,255,50,0.08);border:1px solid rgba(212,255,50,0.15);border-radius:99px;font-family:'JetBrains Mono';font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--accent);margin-bottom:22px}
+  .eyebrow::before{content:'';width:5px;height:5px;background:var(--accent);border-radius:50%;box-shadow:0 0 8px var(--accent)}
+  #intro h1{font-family:'Syne';font-weight:800;font-size:clamp(56px,14vw,128px);line-height:0.85;letter-spacing:-0.04em;margin-bottom:12px}
+  #intro h1 .outline{-webkit-text-stroke:1.5px var(--accent);color:transparent}
+  #intro h1 .fill{color:var(--text)}
+  #intro .desc{color:var(--dim);font-size:14px;line-height:1.6;max-width:520px;margin:14px 0 28px;font-weight:400}
+  #intro .desc strong{color:var(--text);font-weight:600}
+  .cta-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:480px;margin-top:18px}
+  .cta-btn{position:relative;padding:18px 18px;border-radius:var(--radius-sm);border:1px solid var(--line);background:rgba(255,255,255,0.02);color:var(--text);font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer;text-align:left;transition:all .2s;overflow:hidden;display:flex;flex-direction:column;gap:6px}
+  .cta-btn:hover{border-color:var(--line2);background:rgba(255,255,255,0.05);transform:translateY(-1px)}
+  .cta-btn.primary{background:var(--accent);color:#000;border-color:var(--accent)}
+  .cta-btn.primary:hover{background:var(--accent2);transform:translateY(-1px) scale(1.01);box-shadow:0 10px 30px rgba(212,255,50,0.25)}
+  .cta-btn .k{font-family:'JetBrains Mono';font-size:9px;opacity:0.6;letter-spacing:0.12em;text-transform:uppercase}
+  .cta-btn .t{font-size:14px;line-height:1.2}
+  .drop-zone{margin-top:14px;width:100%;max-width:480px;padding:16px;border:1.5px dashed var(--line);border-radius:var(--radius-sm);background:rgba(255,255,255,0.01);font-family:'JetBrains Mono';font-size:11px;color:var(--dim);transition:all .2s}
+  .drop-zone.drag{border-color:var(--accent);background:rgba(212,255,50,0.06);color:var(--accent)}
+  .ws-connect{display:flex;gap:8px;width:100%;max-width:480px;margin-top:12px}
+  .ws-connect input{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;color:var(--text);font-family:'JetBrains Mono';font-size:12px;outline:none}
+  .ws-connect input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(212,255,50,0.1)}
+  .ws-connect button{padding:0 18px;border-radius:var(--radius-sm);border:1px solid var(--line);background:rgba(255,255,255,0.04);color:var(--text);font-family:'JetBrains Mono';font-size:11px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer}
+  .ws-connect button:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* PANEL */
+  #panel{position:fixed;top:52px;right:18px;bottom:18px;width:340px;z-index:30;display:flex;flex-direction:column;background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);backdrop-filter:blur(28px) saturate(1.2);box-shadow:0 20px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) inset;overflow:hidden;transition:transform .35s cubic-bezier(.8,0,.2,1), opacity .25s}
+  #panel.collapsed{transform:translateX(calc(100% + 24px));opacity:0}
+  #panelHead{height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid var(--line);flex-shrink:0}
+  #panelHead .title{font-family:'JetBrains Mono';font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text);display:flex;align-items:center;gap:8px}
+  #panelHead .title::before{content:'';width:8px;height:8px;background:var(--accent);border-radius:2px}
+  #panelTabs{display:flex;gap:2px;padding:8px;background:rgba(0,0,0,0.2);border-bottom:1px solid var(--line);flex-shrink:0}
+  .tab{flex:1;padding:8px 6px;border-radius:6px;border:1px solid transparent;background:transparent;color:var(--dim);font-family:'JetBrains Mono';font-size:9px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;text-align:center;transition:all .15s}
+  .tab:hover{color:var(--text);background:rgba(255,255,255,0.04)}
+  .tab.active{background:rgba(255,255,255,0.07);color:var(--text);border-color:var(--line)}
+  #panelBody{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px}
+  .section{display:flex;flex-direction:column;gap:12px}
+  .section h4{font-family:'JetBrains Mono';font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:8px}
+  .section h4::after{content:'';flex:1;height:1px;background:var(--line)}
+  .row{display:flex;flex-direction:column;gap:6px}
+  .row label{display:flex;justify-content:space-between;align-items:center;font-family:'JetBrains Mono';font-size:11px;color:var(--text)}
+  .row label span{color:var(--accent);font-weight:700}
+  .slider-wrap{position:relative;height:28px;display:flex;align-items:center}
+  input[type=range]{width:100%;-webkit-appearance:none;height:4px;background:rgba(255,255,255,0.08);border-radius:99px;outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(--text);border:2px solid var(--bg);border-radius:50%;box-shadow:0 0 0 1px var(--line), 0 2px 8px rgba(0,0,0,0.4);cursor:pointer;transition:all .15s}
+  input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.2);background:var(--accent)}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:99px}
+  .btn-row{display:flex;gap:6px;flex-wrap:wrap}
+  .mini-btn{flex:1;min-width:70px;padding:10px 8px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,0.03);color:var(--dim);font-family:'JetBrains Mono';font-size:10px;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer;text-align:center;transition:all .15s;position:relative;overflow:hidden}
+  .mini-btn:hover{color:var(--text);background:rgba(255,255,255,0.06);border-color:var(--line2);transform:translateY(-1px)}
+  .mini-btn.active{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700;box-shadow:0 4px 16px rgba(212,255,50,0.25)}
+  .mini-btn .icon{font-size:13px;display:block;margin-bottom:2px}
+  select{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:10px 12px;font-family:'JetBrains Mono';font-size:11px;outline:none;cursor:pointer}
+  select:focus{border-color:var(--accent)}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0}
+  .toggle-row span{font-family:'JetBrains Mono';font-size:11px;color:var(--dim)}
+  .toggle{width:38px;height:22px;background:rgba(255,255,255,0.08);border-radius:99px;position:relative;cursor:pointer;transition:all .2s;border:1px solid var(--line)}
+  .toggle.on{background:var(--accent);border-color:var(--accent)}
+  .toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:white;border-radius:50%;transition:all .2s cubic-bezier(.8,0,.2,1);box-shadow:0 1px 4px rgba(0,0,0,0.3)}
+  .toggle.on::after{left:18px;background:#000}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .color-dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px;border:1px solid rgba(255,255,255,0.2)}
+  .preset-list{display:flex;flex-direction:column;gap:6px;max-height:140px;overflow-y:auto}
+  .preset-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,0.02);font-family:'JetBrains Mono';font-size:11px;color:var(--dim);transition:all .15s}
+  .preset-item:hover{border-color:var(--line2);color:var(--text)}
+  .preset-item button{background:none;border:none;color:inherit;cursor:pointer;padding:4px 6px;border-radius:4px}
+  .preset-item button:hover{background:rgba(255,255,255,0.08);color:var(--accent)}
+
+  #togglePanel{position:fixed;top:60px;right:18px;z-index:29;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);backdrop-filter:blur(16px);color:var(--dim);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
+  #togglePanel:hover{color:var(--text);border-color:var(--line2)}
+  #panel.collapsed + #togglePanel{right:18px}
+
+  /* BOTTOM BAR */
+  #bottomBar{position:fixed;bottom:18px;left:18px;right:376px;z-index:20;display:flex;align-items:center;gap:10px;pointer-events:none}
+  #bottomBar > *{pointer-events:auto}
+  #transport{background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(20px);border-radius:99px;padding:6px;display:flex;align-items:center;gap:6px}
+  .t-btn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,0.04);color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-size:14px}
+  .t-btn:hover{background:rgba(255,255,255,0.08);transform:scale(1.05)}
+  .t-btn.play{background:var(--text);color:#000}
+  .t-btn.play:hover{background:var(--accent)}
+  #progressWrap{flex:1;height:36px;background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(20px);border-radius:99px;padding:0 14px;display:flex;align-items:center;gap:12px}
+  #progressBar{flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:99px;overflow:hidden;position:relative;cursor:pointer}
+  #progressFill{height:100%;width:0%;background:var(--accent);border-radius:99px;transition:width .1s linear}
+  #timeLabel{font-family:'JetBrains Mono';font-size:10px;color:var(--dim);min-width:70px;text-align:right}
+  #keyHints{display:flex;gap:12px;font-family:'JetBrains Mono';font-size:9px;color:var(--dim2);margin-left:8px}
+  #keyHints b{color:var(--dim)}
+
+  #recIndicator{position:fixed;bottom:66px;right:18px;z-index:25;background:rgba(255,45,120,0.12);border:1px solid rgba(255,45,120,0.25);backdrop-filter:blur(12px);border-radius:99px;padding:6px 12px;display:none;align-items:center;gap:8px;font-family:'JetBrains Mono';font-size:10px;color:#FF2D78;letter-spacing:0.08em}
+  #recIndicator .rdot{width:8px;height:8px;border-radius:50%;background:#FF2D78;animation:pulse 1s infinite}
+
+  /* MINI MODE — petite fenêtre flottante sans bordure, modulable */
+  body.mini-mode{background:transparent;overflow:hidden}
+  body.mini-mode #titlebar,
+  body.mini-mode #hud,
+  body.mini-mode #statsBar,
+  body.mini-mode #panel,
+  body.mini-mode #togglePanel,
+  body.mini-mode #bottomBar,
+  body.mini-mode #recIndicator,
+  body.mini-mode #intro{display:none !important}
+  body.mini-mode #canvasWrap{
+    position:fixed;inset:auto;
+    top:110px;left:calc(50% - 240px);
+    width:480px;height:270px;
+    border-radius:14px;overflow:hidden;
+    border:none !important;outline:none;
+    box-shadow:0 24px 90px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.09);
+    cursor:move;transition:box-shadow .2s;
+  }
+  body.mini-mode #canvasWrap:hover{box-shadow:0 24px 90px rgba(0,0,0,0.85), 0 0 0 1px rgba(212,255,50,0.35)}
+  body.mini-mode #stage{width:100% !important;height:100% !important;display:block}
+  body.mini-mode #overlayFX.mini-attached{position:absolute !important;inset:0 !important;border-radius:14px;overflow:hidden}
+  #miniToolbar{
+    position:absolute;top:0;left:0;right:0;height:38px;z-index:10;
+    display:none;align-items:center;gap:6px;padding:0 8px 0 12px;
+    background:linear-gradient(180deg, rgba(0,0,0,0.65), transparent);
+    opacity:0;transition:opacity .2s;cursor:default;
+  }
+  body.mini-mode #miniToolbar{display:flex}
+  body.mini-mode #canvasWrap:hover #miniToolbar{opacity:1}
+  #miniToolbar .mini-title{font-family:'Syne';font-weight:800;font-size:11px;letter-spacing:.08em;flex:1;pointer-events:none;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+  #miniToolbar .mini-title span{color:var(--accent)}
+  .mini-tbtn{
+    width:28px;height:24px;border-radius:6px;border:1px solid rgba(255,255,255,.12);
+    background:rgba(0,0,0,.5);backdrop-filter:blur(8px);color:#fff;font-size:11px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .mini-tbtn:hover{background:var(--accent);color:#000;border-color:var(--accent)}
+  #miniResize{
+    position:absolute;right:0;bottom:0;width:26px;height:26px;z-index:11;
+    cursor:nwse-resize;display:none;
+    background:linear-gradient(135deg, transparent 50%, rgba(212,255,50,.9) 50%);
+    border-bottom-right-radius:14px;opacity:0;transition:opacity .2s;
+  }
+  body.mini-mode #miniResize{display:block}
+  body.mini-mode #canvasWrap:hover #miniResize{opacity:.9}
+  #miniHint{
+    position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:99;display:none;
+    font-family:'JetBrains Mono';font-size:10px;color:var(--dim);letter-spacing:.06em;
+    background:rgba(10,10,14,.85);border:1px solid var(--line);border-radius:99px;padding:7px 16px;
+    backdrop-filter:blur(12px);white-space:nowrap;
+  }
+  body.mini-mode #miniHint{display:block}
+  #miniHint b{color:var(--accent)}
+  #pipVideo{position:fixed;width:2px;height:2px;opacity:0;pointer-events:none;bottom:0;left:0;z-index:-1}
+
+  /* RESPONSIVE */
+  @media (max-width:900px){
+    #panel{width:92vw;right:4vw;left:4vw;bottom:80px;top:auto;max-height:58vh}
+    #bottomBar{right:18px;left:18px;bottom:18px}
+    #hud{top:50px;left:12px}
+    #statsBar{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="canvasWrap"><canvas id="stage"></canvas>
+  <div id="miniToolbar">
+    <span class="mini-title">GIBZ <span>MINI</span></span>
+    <button class="mini-tbtn" id="miniPlay" title="Lecture / Pause (Espace)">⏸</button>
+    <button class="mini-tbtn" id="miniPip" title="Fenêtre OS flottante (Picture-in-Picture)">🪟</button>
+    <button class="mini-tbtn" id="miniExpand" title="Retour plein écran (M / Échap)">⛶</button>
+  </div>
+  <div id="miniResize" title="Redimensionner"></div>
+</div>
+<div id="miniHint"><b>Glisser</b> pour déplacer &nbsp;•&nbsp; <b>Coin bas-droit</b> pour redimensionner &nbsp;•&nbsp; <b>Double-clic / M / Échap</b> pour quitter</div>
+<video id="pipVideo" muted playsinline></video>
+<div id="overlayFX">
+  <div id="vignette"></div>
+  <div id="scanlines"></div>
+  <div id="chroma"></div>
+</div>
+
+<div id="titlebar">
+  <div class="brand"><div class="logo">G</div><div class="appname">GIBZ <span>STUDIO</span></div></div>
+  <div class="win-controls">
+    <button class="win-btn" id="winMini" title="Mini fenêtre sans bordure (M)">⧉</button>
+    <button class="win-btn" id="winMin">—</button>
+    <button class="win-btn" id="winMax">▢</button>
+    <button class="win-btn close" id="winClose">✕</button>
+  </div>
+</div>
+
+<div id="hud">
+  <div id="hud-main">
+    <div class="word">GIBZ</div>
+    <div class="sub">Audio Reactive Engine • v2.0</div>
+    <canvas id="miniViz" width="180" height="28"></canvas>
+    <div id="hud-status"><span class="dot" id="statusDot"></span><span id="statusText">En attente</span><div id="beatIndicator"></div></div>
+  </div>
+</div>
+
+<div id="statsBar">
+  <div class="stat-chip"><b id="fpsChip">--</b> FPS</div>
+  <div class="stat-chip accent" id="modeChip">BARS</div>
+  <div class="stat-chip"><span id="audioInfo">No source</span></div>
+</div>
+
+<div id="intro">
+  <div id="intro-bg"><canvas id="introCanvas"></canvas></div>
+  <div id="intro-content">
+    <div class="eyebrow">Windows Edition • GPU Accelerated</div>
+    <h1><span class="fill">GIBZ</span><br><span class="outline">STUDIO</span></h1>
+    <div class="cta-grid">
+      <button class="cta-btn primary" id="btnLoadFile"><span class="k">Source • Fichier local</span><span class="t">▸ Ouvrir un morceau</span></button>
+      <button class="cta-btn" id="btnUseMic"><span class="k">Source • Entrée live</span><span class="t">🎙 Activer le micro</span></button>
+    </div>
+    <div class="drop-zone" id="dropZone">Glisser-déposer un fichier audio ici • MP3, WAV, FLAC, OGG</div>
+    <div class="ws-connect"><input id="wsUrlInput" placeholder="wss://flux-audio.exemple.com"><button id="btnConnectWs">Connecter</button></div>
+  </div>
+</div>
+
+<button id="togglePanel" title="Panneau (Tab)">⚙</button>
+
+<div id="panel">
+  <div id="panelHead"><span class="title">Contrôle Studio</span><div style="display:flex;gap:6px"><button class="win-btn" id="btnCollapse" style="width:26px;height:26px">—</button></div></div>
+  <div id="panelTabs">
+    <button class="tab active" data-tab="source">Source</button>
+    <button class="tab" data-tab="visual">Visual</button>
+    <button class="tab" data-tab="color">Couleur</button>
+    <button class="tab" data-tab="fx">Effets</button>
+    <button class="tab" data-tab="export">Export</button>
+  </div>
+  <div id="panelBody">
+
+    <div class="tab-content" data-tab="source">
+      <div class="section">
+        <h4>Lecture</h4>
+        <div class="btn-row"><button class="mini-btn" id="pBtnFile">📁 Ouvrir</button><button class="mini-btn" id="pBtnMic">🎙 Micro</button><button class="mini-btn" id="pBtnPlay">▶ Play</button></div>
+        <div class="row"><label>Volume <span id="volVal">80%</span></label><div class="slider-wrap"><input type="range" id="volSlider" min="0" max="1" step="0.01" value="0.8"></div></div>
+        <div class="row"><label>Vitesse <span id="rateVal">1.00×</span></label><div class="slider-wrap"><input type="range" id="rateSlider" min="0.25" max="2.5" step="0.05" value="1"></div></div>
+      </div>
+      <div class="section">
+        <h4>Analyse</h4>
+        <div class="row"><label>FFT Size <span id="fftVal">4096</span></label><select id="fftSelect"><option value="2048">2048 • Léger</option><option value="4096" selected>4096 • Équilibré</option><option value="8192">8192 • Précis</option><option value="16384">16384 • Studio</option></select></div>
+        <div class="row"><label>Smoothing <span id="smoothVal">0.78</span></label><div class="slider-wrap"><input type="range" id="smoothSlider" min="0" max="0.95" step="0.01" value="0.78"></div></div>
+        <div class="row"><label>Réactivité (lerp) <span id="lerpVal">0.38</span></label><div class="slider-wrap"><input type="range" id="lerpSlider" min="0.05" max="1" step="0.01" value="0.38"></div></div>
+        <div class="row"><label>Gain global <span id="gainVal">1.20</span></label><div class="slider-wrap"><input type="range" id="gainSlider" min="0.2" max="4" step="0.05" value="1.2"></div></div>
+        <div class="toggle-row"><span>Détection de beat</span><div class="toggle on" id="beatToggle"></div></div>
+      </div>
+    </div>
+
+    <div class="tab-content" data-tab="visual" style="display:none">
+      <div class="section">
+        <h4>Mode (1-7)</h4>
+        <div class="btn-row">
+          <button class="mini-btn active" data-viz="bars"><span class="icon">▅</span>Barres</button>
+          <button class="mini-btn" data-viz="wave"><span class="icon">∿</span>Wave</button>
+          <button class="mini-btn" data-viz="particles"><span class="icon">✦</span>Particules</button>
+        </div>
+        <div class="btn-row" style="margin-top:6px">
+          <button class="mini-btn" data-viz="radial"><span class="icon">◍</span>Radial</button>
+          <button class="mini-btn" data-viz="spectrogram"><span class="icon">▤</span>Spectro</button>
+          <button class="mini-btn" data-viz="tunnel"><span class="icon">◎</span>Tunnel</button>
+        </div>
+        <div class="btn-row" style="margin-top:6px">
+          <button class="mini-btn" data-viz="flow"><span class="icon">◍</span>Flow</button>
+        </div>
+      </div>
+      <div class="section">
+        <h4>Paramètres visuels</h4>
+        <div class="row"><label>Quantité / Densité <span id="particleVal">600</span></label><div class="slider-wrap"><input type="range" id="particleSlider" min="50" max="2000" step="50" value="600"></div></div>
+        <div class="row"><label>Vitesse rotation <span id="rotVal">1.0×</span></label><div class="slider-wrap"><input type="range" id="rotSlider" min="0" max="3" step="0.1" value="1"></div></div>
+        <div class="row"><label>Fond</label><select id="bgMode"><option value="black">Noir pur</option><option value="gradient" selected>Gradient Mesh</option><option value="stars">Starfield</option><option value="grid">Grille néon</option></select></div>
+      </div>
+    </div>
+
+    <div class="tab-content" data-tab="color" style="display:none">
+      <div class="section">
+        <h4>Palette</h4>
+        <div class="btn-row">
+          <button class="mini-btn active" data-theme="acid"><span class="color-dot" style="background:#D4FF32"></span>Acid</button>
+          <button class="mini-btn" data-theme="neon"><span class="color-dot" style="background:#00FFF0"></span>Neon</button>
+          <button class="mini-btn" data-theme="sunset"><span class="color-dot" style="background:linear-gradient(45deg,#FF3D7A,#FFB23D)"></span>Sunset</button>
+        </div>
+        <div class="btn-row" style="margin-top:6px">
+          <button class="mini-btn" data-theme="ocean"><span class="color-dot" style="background:#3D7AFF"></span>Ocean</button>
+          <button class="mini-btn" data-theme="mono"><span class="color-dot" style="background:#FFF"></span>Mono</button>
+          <button class="mini-btn" data-theme="custom"><span class="color-dot" style="background:conic-gradient(red,yellow,lime,aqua,blue,magenta,red)"></span>Custom</button>
+        </div>
+      </div>
+      <div class="section" id="customColorSection">
+        <h4>Couleur custom</h4>
+        <div class="row"><label>Mode</label><select id="colorModeSelect"><option value="hsl">HSL simple</option><option value="gradient" selected>Dégradé 2 tons</option><option value="rainbow">Arc-en-ciel</option></select></div>
+        <div id="hslControls" style="display:none">
+          <div class="row"><label>Teinte <span id="hueVal">85°</span></label><div class="slider-wrap"><input type="range" id="hueSlider" min="0" max="360" step="1" value="85"></div></div>
+          <div class="row"><label>Saturation <span id="satVal">95%</span></label><div class="slider-wrap"><input type="range" id="satSlider" min="0" max="100" step="1" value="95"></div></div>
+          <div class="row"><label>Luminosité <span id="lightVal">58%</span></label><div class="slider-wrap"><input type="range" id="lightSlider" min="0" max="100" step="1" value="58"></div></div>
+        </div>
+        <div id="gradControls">
+          <div class="two-col"><div><label style="font-size:10px">Départ</label><input type="color" id="gradStart" value="#D4FF32" style="width:100%;height:36px;border:1px solid var(--line);border-radius:8px;background:none"></div><div><label style="font-size:10px">Fin</label><input type="color" id="gradEnd" value="#FF2D78" style="width:100%;height:36px;border:1px solid var(--line);border-radius:8px;background:none"></div></div>
+        </div>
+        <div class="row" style="margin-top:10px"><label>Glow <span id="glowVal">0.90</span></label><div class="slider-wrap"><input type="range" id="glowSlider" min="0" max="1.5" step="0.05" value="0.9"></div></div>
+      </div>
+    </div>
+
+    <div class="tab-content" data-tab="fx" style="display:none">
+      <div class="section">
+        <h4>Rendu</h4>
+        <div class="row"><label>Traînée / Persistance <span id="trailVal">0.18</span></label><div class="slider-wrap"><input type="range" id="trailSlider" min="0.02" max="0.9" step="0.01" value="0.18"></div></div>
+        <div class="row"><label>Bloom intensité <span id="bloomVal">1.0</span></label><div class="slider-wrap"><input type="range" id="bloomSlider" min="0" max="2" step="0.05" value="1"></div></div>
+        <div class="toggle-row"><span>Effet miroir</span><div class="toggle" id="mirrorToggle"></div></div>
+        <div class="toggle-row"><span>Vignette</span><div class="toggle on" id="vignetteToggle"></div></div>
+        <div class="toggle-row"><span>Scanlines CRT</span><div class="toggle" id="scanToggle"></div></div>
+        <div class="toggle-row"><span>Pulse réactif (zoom bass)</span><div class="toggle on" id="reactiveToggle"></div></div>
+        <div class="toggle-row"><span>Compteur FPS</span><div class="toggle" id="fpsToggle"></div></div>
+      </div>
+    </div>
+
+    <div class="tab-content" data-tab="export" style="display:none">
+      <div class="section">
+        <h4>Fenêtre mini</h4>
+        <div class="btn-row"><button class="mini-btn" id="btnMiniMode">⧉ Mini sans bordure</button><button class="mini-btn" id="btnPipOS">🪟 Fenêtre OS flottante</button></div>
+        <div style="font-family:'JetBrains Mono';font-size:9px;color:var(--dim);margin-top:8px;line-height:1.5">Mini = fenêtre flottante dans l'app, déplaçable + redimensionnable (touche <b style="color:var(--accent)">M</b>). Fenêtre OS = vraie petite fenêtre système toujours visible, même sur une autre app.</div>
+      </div>
+      <div class="section">
+        <h4>Presets studio</h4>
+        <div class="btn-row"><button class="mini-btn" id="btnSavePreset">💾 Sauver</button><button class="mini-btn" id="btnFullscreen">⛶ Fullscreen</button><button class="mini-btn" id="btnReset">↺ Reset</button></div>
+        <div class="preset-list" id="presetList"></div>
+      </div>
+      <div class="section">
+        <h4>Capture</h4>
+        <div class="btn-row"><button class="mini-btn" id="btnScreenshot">📸 Screenshot PNG</button></div>
+        <div style="height:8px"></div>
+        <div class="btn-row"><button class="mini-btn" id="btnRecord">⏺ Enregistrer WEBM</button><button class="mini-btn" id="btnStopRecord" style="display:none;background:#FF2D78;color:white">⏹ Stop</button></div>
+        <div style="font-family:'JetBrains Mono';font-size:9px;color:var(--dim);margin-top:8px;line-height:1.4">L'export utilise MediaRecorder. Qualité 1080p 30fps VP9. Fichier sauvegardé via dialogue Windows.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="bottomBar">
+  <div id="transport"><button class="t-btn" id="tPrev">⏮</button><button class="t-btn play" id="tPlay">▶</button><button class="t-btn" id="tNext">⏭</button></div>
+  <div id="progressWrap"><div id="progressBar"><div id="progressFill"></div></div><div id="timeLabel">00:00 / 00:00</div></div>
+  <div id="keyHints"><span><b>1-7</b> modes</span><span><b>Espace</b> play</span><span><b>F</b> fullscreen</span><span><b>M</b> mini</span><span><b>Tab</b> panneau</span></div>
+</div>
+
+<div id="recIndicator"><span class="rdot"></span>REC • <span id="recTime">00:00</span></div>
+
+<audio id="audioEl" crossorigin="anonymous"></audio>
+<input type="file" id="fileInput" accept="audio/*" style="display:none">
+
+<script>
+"use strict";
+
+/* ---------- ELECTRON BRIDGE ---------- */
+const isElectron = !!(window.electronAPI);
+if(isElectron){
+  document.getElementById('winMin').onclick = ()=>electronAPI.minimize();
+  document.getElementById('winMax').onclick = ()=>electronAPI.maximize();
+  document.getElementById('winClose').onclick = ()=>electronAPI.close();
+  const wm=document.getElementById('winMini');
+  if(wm) wm.onclick = ()=>toggleMiniMode();
+} else {
+  document.getElementById('titlebar').style.display='none';
+  document.getElementById('hud').style.top='18px';
+  document.getElementById('panel').style.top='18px';
+  document.getElementById('togglePanel').style.top='18px';
+  document.getElementById('statsBar').style.top='18px';
+}
+
+/* ---------- COLOR SYSTEM ---------- */
+class ColorSystem{
+  constructor(){
+    this.mode='gradient';
+    this.hue=85; this.sat=95; this.light=58;
+    this.bandOffset=[0,35,75];
+    this.gradStart='#D4FF32'; this.gradEnd='#FF2D78';
+    this.glowOpacity=0.9; this.bloom=1.0;
+    this.theme='acid';
+    this.themes={
+      acid:{mode:'gradient',gradStart:'#D4FF32',gradEnd:'#A8FF00'},
+      neon:{mode:'gradient',gradStart:'#00FFF0',gradEnd:'#7A5CFF'},
+      sunset:{mode:'gradient',gradStart:'#FF3D7A',gradEnd:'#FFB23D'},
+      ocean:{mode:'gradient',gradStart:'#3D7AFF',gradEnd:'#00FFC2'},
+      mono:{mode:'hsl',hue:0,sat:0,light:75},
+      custom:{mode:'gradient',gradStart:'#D4FF32',gradEnd:'#FF2D78'}
+    };
+  }
+  applyTheme(name){
+    this.theme=name;
+    const t=this.themes[name];
+    if(t){ Object.assign(this,t); }
+  }
+  bandFor(t){ return t<0.18?0:(t<0.52?1:2); }
+  colorAt(i,total,alpha=1,timeMs=0,bandBoost=0){
+    const t= total>1? i/(total-1):0;
+    if(this.mode==='rainbow'){
+      const hue=(t*360+timeMs*0.04)%360;
+      return `hsla(${hue.toFixed(1)},95%,60%,${alpha})`;
+    }
+    if(this.mode==='gradient'){
+      const c1=this._hexToRgb(this.gradStart), c2=this._hexToRgb(this.gradEnd);
+      // add slight hue shift over time for life
+      const mix = t + Math.sin(timeMs*0.0003 + i*0.1)*0.04;
+      const mt=Math.max(0,Math.min(1,mix));
+      const r=Math.round(c1.r+(c2.r-c1.r)*mt);
+      const g=Math.round(c1.g+(c2.g-c1.g)*mt);
+      const b=Math.round(c1.b+(c2.b-c1.b)*mt);
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+    const band=this.bandFor(t);
+    const hue=(this.hue+this.bandOffset[band]+bandBoost+360)%360;
+    return `hsla(${hue},${this.sat}%,${this.light}%,${alpha})`;
+  }
+  glowColor(i,total,timeMs){ return this.colorAt(i,total,this.glowOpacity,timeMs); }
+  _hexToRgb(hex){ hex=hex.replace('#',''); return {r:parseInt(hex.slice(0,2),16),g:parseInt(hex.slice(2,4),16),b:parseInt(hex.slice(4,6),16)}; }
+  toJSON(){ return {mode:this.mode,hue:this.hue,sat:this.sat,light:this.light,bandOffset:[...this.bandOffset],gradStart:this.gradStart,gradEnd:this.gradEnd,glowOpacity:this.glowOpacity,theme:this.theme,bloom:this.bloom}; }
+  fromJSON(o){ Object.assign(this,o); }
+}
+
+/* ---------- AUDIO ENGINE ---------- */
+class AudioEngine{
+  constructor(){
+    this.ctx=null; this.analyser=null; this.gainNode=null; this.sourceNode=null;
+    this.fftSize=4096; this.smoothing=0.78;
+    this.freqData=null; this.timeData=null;
+    this.ws=null; this.wsFreqOverride=null;
+    this.onStatus=null;
+    this.beatEnabled=true; this._beatThreshold=0.55; this._lastBeat=0; this.isBeat=false;
+  }
+  ensureContext(){
+    if(!this.ctx){
+      this.ctx=new (window.AudioContext||window.webkitAudioContext)();
+      this.analyser=this.ctx.createAnalyser();
+      this.analyser.fftSize=this.fftSize; this.analyser.smoothingTimeConstant=this.smoothing;
+      this.gainNode=this.ctx.createGain(); this._alloc();
+    }
+  }
+  _alloc(){
+    const n=this.analyser.frequencyBinCount;
+    this.freqData=new Uint8Array(n); this.timeData=new Uint8Array(n);
+  }
+  setFFTSize(s){ this.fftSize=s; if(this.analyser){ this.analyser.fftSize=s; this._alloc(); } }
+  setSmoothing(v){ this.smoothing=v; if(this.analyser) this.analyser.smoothingTimeConstant=v; }
+  setGain(v){ if(this.gainNode) this.gainNode.gain.value=v; }
+  connectFile(audioEl){
+    this.ensureContext();
+    if(this.sourceNode) try{this.sourceNode.disconnect();}catch(e){}
+    this.sourceNode=this.ctx.createMediaElementSource(audioEl);
+    this.sourceNode.connect(this.gainNode); this.gainNode.connect(this.analyser); this.analyser.connect(this.ctx.destination);
+    this._status(true,'Fichier audio');
+  }
+  async connectMic(){
+    this.ensureContext();
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    if(this.sourceNode) try{this.sourceNode.disconnect();}catch(e){}
+    this.sourceNode=this.ctx.createMediaStreamSource(stream);
+    this.sourceNode.connect(this.gainNode); this.gainNode.connect(this.analyser);
+    this._status(true,'Micro actif');
+  }
+  connectWebSocket(url){
+    this.ensureContext();
+    try{
+      this.ws=new WebSocket(url);
+      this.ws.onopen=()=>this._status(true,'WebSocket connecté');
+      this.ws.onclose=()=>this._status(false,'WebSocket fermé');
+      this.ws.onerror=()=>this._status(false,'Erreur WS');
+      this.ws.onmessage=(evt)=>{ try{ const m=JSON.parse(evt.data); if(m.freq) this.wsFreqOverride=Uint8Array.from(m.freq); }catch(e){} };
+    }catch(e){ this._status(false,'URL WS invalide'); }
+  }
+  _status(live,text){ if(this.onStatus) this.onStatus(live,text); }
+  getFrequencyData(){
+    if(this.wsFreqOverride) return this.wsFreqOverride;
+    if(!this.analyser) return null;
+    this.analyser.getByteFrequencyData(this.freqData); return this.freqData;
+  }
+  getTimeDomainData(){ if(!this.analyser) return null; this.analyser.getByteTimeDomainData(this.timeData); return this.timeData; }
+  getBandLevels(){
+    const data=this.getFrequencyData(); if(!data) return {bass:0,mid:0,treble:0,avg:0};
+    const n=data.length; const bassEnd=Math.floor(n*0.08), midEnd=Math.floor(n*0.35);
+    let b=0,m=0,t=0,tot=0; for(let i=0;i<n;i++){ tot+=data[i]; if(i<bassEnd) b+=data[i]; else if(i<midEnd) m+=data[i]; else t+=data[i]; }
+    const res={ bass:b/(bassEnd*255)||0, mid:m/((midEnd-bassEnd)*255)||0, treble:t/((n-midEnd)*255)||0, avg:tot/(n*255)||0 };
+    // beat detection on bass
+    if(this.beatEnabled){
+      const now=performance.now();
+      if(res.bass>this._beatThreshold && now-this._lastBeat>180){ this.isBeat=true; this._lastBeat=now; }
+      else if(now-this._lastBeat>120) this.isBeat=false;
+    }
+    return res;
+  }
+  isActive(){ return !!this.analyser; }
+  play(){ this.ctx && this.ctx.state==='suspended' && this.ctx.resume(); }
+}
+
+/* ---------- VISUALIZERS ---------- */
+class VisualizerBase{ constructor(ctx,audio,colors,opts){ this.ctx=ctx; this.audio=audio; this.colors=colors; this.opts=opts; } }
+
+class BarsVisualizer extends VisualizerBase{
+  constructor(...a){ super(...a); this.smooth=null; }
+  render(dt,W,H){
+    const {ctx,audio,colors,opts}=this;
+    const data=audio.getFrequencyData(); if(!data) return;
+    const count=Math.min(opts.maxParticles>1000?220:160, Math.floor(data.length*0.55));
+    if(!this.smooth||this.smooth.length!==count) this.smooth=new Float32Array(count);
+    const step=Math.floor(data.length*0.55/count)||1;
+    const barW=(W/count)*0.68; const gap=(W/count)-barW;
+    let x=0; const lerp=opts.lerp; const time=performance.now();
+    const lv=audio.getBandLevels();
+    for(let i=0;i<count;i++){
+      const raw=data[i*step]/255;
+      const target=raw*H*0.62*opts.gain*(1+lv.bass*0.2);
+      this.smooth[i]+=(target-this.smooth[i])*lerp;
+      const h=this.smooth[i];
+      // 3D perspective: scale x
+      const centerDist=Math.abs((i/count)-0.5)*2; // 0 center, 1 edge
+      const perspective=1-centerDist*0.15;
+      const bw=barW*perspective;
+      const col=colors.colorAt(i,count,1,time, lv.bass*20);
+      if(opts.glow){ ctx.shadowBlur=18*colors.glowOpacity*opts.bloom; ctx.shadowColor=col; }
+      ctx.fillStyle=col;
+      // main bar
+      ctx.fillRect(x+(barW-bw)/2, H-h, bw, h);
+      // top cap
+      ctx.fillRect(x+(barW-bw)/2, H-h-3, bw, 3);
+      // reflection
+      if(opts.mirror){ ctx.globalAlpha=0.18; ctx.fillRect(x+(barW-bw)/2, 0, bw, h*0.28); ctx.globalAlpha=1; }
+      x+=barW+gap;
+    }
+    ctx.shadowBlur=0;
+  }
+}
+
+class WaveVisualizer extends VisualizerBase{
+  render(dt,W,H){
+    const {ctx,audio,colors,opts}=this;
+    const data=audio.getTimeDomainData(); if(!data) return;
+    const time=performance.now();
+    ctx.beginPath();
+    const col=colors.colorAt(0.5*data.length,data.length,1,time);
+    if(opts.glow){ ctx.shadowBlur=22*colors.glowOpacity*opts.bloom; ctx.shadowColor=col; }
+    ctx.strokeStyle=col; ctx.lineWidth=2.6;
+    const slice=W/data.length; let x=0;
+    for(let i=0;i<data.length;i++){
+      const v=(data[i]-128)/128;
+      const y=H/2+v*H*0.38*opts.gain;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      x+=slice;
+    }
+    ctx.stroke();
+    // fill under
+    ctx.lineTo(W,H/2); ctx.lineTo(0,H/2); ctx.closePath();
+    ctx.globalAlpha=0.08; ctx.fillStyle=col; ctx.fill(); ctx.globalAlpha=1;
+    ctx.shadowBlur=0;
+    // second wave offset
+    ctx.beginPath(); ctx.strokeStyle=colors.colorAt(0.2*data.length,data.length,0.5,time+500); ctx.lineWidth=1.2; x=0;
+    for(let i=0;i<data.length;i++){ const v=(data[i]-128)/128; const y=H/2+v*H*0.28*opts.gain + Math.sin(i*0.02+time*0.002)*6; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); x+=slice; }
+    ctx.stroke();
+  }
+}
+
+class ParticlesVisualizer extends VisualizerBase{
+  constructor(...a){ super(...a); this.particles=[]; this._respawn(); }
+  _respawn(){ this.particles=[]; for(let i=0;i<this.opts.maxParticles;i++) this.particles.push(this._newP()); }
+  _newP(){ const _mw=document.body.classList.contains('mini-mode')?document.getElementById('canvasWrap').getBoundingClientRect():{width:innerWidth,height:innerHeight}; return {x:Math.random()*_mw.width, y:Math.random()*_mw.height, vx:(Math.random()-0.5)*1.4, vy:(Math.random()-0.5)*1.4, r:1.2+Math.random()*2.8, baseR:1.2+Math.random()*2.8}; }
+  setMax(n){ if(n>this.particles.length){ while(this.particles.length<n) this.particles.push(this._newP()); } else this.particles.length=n; }
+  render(dt,W,H){
+    const {ctx,audio,colors,opts}=this; const lv=audio.getBandLevels(); const time=performance.now();
+    const grav=0.02+lv.bass*0.28; const fric=0.985;
+    // beat burst
+    if(audio.isBeat){ for(let p of this.particles){ if(Math.random()<0.12){ p.vx+=(Math.random()-0.5)*6; p.vy+=-Math.random()*5; } } }
+    for(let i=0;i<this.particles.length;i++){
+      const p=this.particles[i];
+      p.vy+=grav; p.vx*=fric; p.vy*=fric;
+      p.x+=p.vx*(1+lv.treble*2.5); p.y+=p.vy;
+      if(p.y>H){ p.y=H; p.vy*=-0.5; } if(p.y<0){ p.y=0; p.vy*=-0.4; } if(p.x<0){ p.x=0; p.vx*=-0.6; } if(p.x>W){ p.x=W; p.vx*=-0.6; }
+      const size=p.baseR+lv.mid*5*opts.gain;
+      const col=colors.colorAt(i,this.particles.length,0.9,time);
+      if(opts.glow){ ctx.shadowBlur=14*colors.glowOpacity*opts.bloom; ctx.shadowColor=col; }
+      ctx.fillStyle=col; ctx.beginPath(); ctx.arc(p.x,p.y,size,0,Math.PI*2); ctx.fill();
+    }
+    ctx.shadowBlur=0;
+    // connections
+    ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=0.6;
+    for(let i=0;i<this.particles.length;i+=3){
+      const a=this.particles[i];
+      for(let j=i+1;j<Math.min(i+8,this.particles.length);j++){
+        const b=this.particles[j]; const dx=a.x-b.x, dy=a.y-b.y; const d=dx*dx+dy*dy;
+        if(d<9000){ ctx.globalAlpha=1-d/9000; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+      }
+    }
+    ctx.globalAlpha=1;
+  }
+}
+
+class RadialVisualizer extends VisualizerBase{
+  constructor(...a){ super(...a); this.angle=0; }
+  render(dt,W,H){
+    const {ctx,audio,colors,opts}=this; const data=audio.getFrequencyData(); if(!data) return;
+    const cx=W/2, cy=H/2; const baseR=Math.min(W,H)*0.14; const sides=120;
+    this.angle+=0.35*dt*opts.rotSpeed;
+    const time=performance.now();
+    const lv=audio.getBandLevels();
+    // layers
+    for(let layer=0;layer<3;layer++){
+      ctx.beginPath();
+      const layerScale=1+layer*0.28;
+      for(let i=0;i<=sides;i++){
+        const idx=Math.floor((i/sides)*data.length*0.5);
+        const v=data[idx]/255;
+        const ang=(i/sides)*Math.PI*2+this.angle*(layer%2?1:-1)*(0.5+layer*0.2);
+        const r=baseR*layerScale+v*Math.min(W,H)*0.28*opts.gain/(layer+1);
+        const x=cx+Math.cos(ang)*r, y=cy+Math.sin(ang)*r;
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath();
+      const col=colors.colorAt(layer,sides,0.9-layer*0.25,time);
+      if(opts.glow){ ctx.shadowBlur=20*colors.glowOpacity*opts.bloom; ctx.shadowColor=col; }
+      ctx.strokeStyle=col; ctx.lineWidth=2.2-layer*0.4; ctx.stroke();
+      if(layer===0){ ctx.fillStyle=colors.colorAt(0,sides,0.07,time); ctx.fill(); }
+    }
+    ctx.shadowBlur=0;
+    // core
+    ctx.beginPath();
+    const coreR=baseR*0.42+lv.bass*baseR*0.7;
+    ctx.fillStyle=colors.colorAt(0,sides,0.95,time);
+    ctx.arc(cx,cy,coreR,0,Math.PI*2); ctx.fill();
+    // inner glow
+    const grad=ctx.createRadialGradient(cx,cy,coreR*0.2,cx,cy,coreR*2.2);
+    grad.addColorStop(0, colors.colorAt(0,1,0.25,time));
+    grad.addColorStop(1,'transparent');
+    ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(cx,cy,coreR*2.2,0,Math.PI*2); ctx.fill();
+  }
+}
+
+class SpectrogramVisualizer extends VisualizerBase{
+  constructor(...a){ super(...a); this.buffer=document.createElement('canvas'); this.bctx=this.buffer.getContext('2d'); }
+  render(dt,W,H){
+    const {ctx,audio,colors}=this; const data=audio.getFrequencyData(); if(!data) return;
+    if(this.buffer.width!==Math.floor(W)||this.buffer.height!==Math.floor(H)){ this.buffer.width=Math.floor(W); this.buffer.height=Math.floor(H); }
+    this.bctx.drawImage(this.buffer,-2,0);
+    const n=Math.floor(data.length*0.75); const time=performance.now();
+    for(let y=0;y<H;y++){
+      const t=1-y/H; const idx=Math.min(n-1,Math.floor(t*n));
+      const mag=data[idx]/255; const col=colors.colorAt(idx,n,Math.min(1,mag*1.4+0.08),time);
+      this.bctx.fillStyle=col; this.bctx.fillRect(this.buffer.width-2,y,2,1);
+    }
+    ctx.drawImage(this.buffer,0,0);
+  }
+}
+
+class TunnelVisualizer extends VisualizerBase{
+  constructor(...a){ super(...a); this.z=[]; for(let i=0;i<180;i++) this.z.push({z:Math.random()*1, angle:Math.random()*Math.PI*2}); }
+  render(dt,W,H){
+    const {ctx,audio,colors,opts}=this; const data=audio.getFrequencyData(); if(!data) return;
+    const cx=W/2, cy=H/2; const time=performance.now(); const lv=audio.getBandLevels();
+    const speed=0.6+lv.bass*1.2;
+    for(let p of this.z){
+      p.z-=dt*speed; if(p.z<=0){ p.z=1; p.angle=Math.random()*Math.PI*2; }
+      const scale=1/p.z; const r=scale*Math.min(W,H)*0.6;
+      const idx=Math.floor((p.angle/(Math.PI*2))*data.length*0.5);
+      const mag=data[idx]/255;
+      const size=scale*3+mag*8;
+      const x=cx+Math.cos(p.angle)*r; const y=cy+Math.sin(p.angle)*r;
+      const col=colors.colorAt(idx,data.length,Math.min(1,0.2+mag+scale*0.2),time);
+      if(opts.glow){ ctx.shadowBlur=12*colors.glowOpacity*opts.bloom; ctx.shadowColor=col; }
+      ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,size,0,Math.PI*2); ctx.fill();
+    }
+    ctx.shadowBlur=0;
+    // center portal
+    const portalR=60+lv.bass*80;
+    const grad=ctx.createRadialGradient(cx,cy,0,cx,cy,portalR);
+    grad.addColorStop(0, colors.colorAt(0,1,0.9,time));
+    grad.addColorStop(0.4, colors.colorAt(0,1,0.15,time));
+    grad.addColorStop(1,'transparent');
+    ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(cx,cy,portalR,0,Math.PI*2); ctx.fill();
+  }
+}
+
+class FlowVisualizer extends VisualizerBase{
+  constructor(...a){ super(...a); this.blobs=[]; for(let i=0;i<8;i++) this.blobs.push({x:Math.random(),y:Math.random(),vx:(Math.random()-0.5)*0.0008,vy:(Math.random()-0.5)*0.0008, r:0.12+Math.random()*0.18}); }
+  render(dt,W,H){
+    const {ctx,audio,colors,opts}=this; const data=audio.getFrequencyData(); if(!data) return;
+    const lv=audio.getBandLevels(); const time=performance.now();
+    // update blobs
+    for(let b of this.blobs){
+      b.x+=b.vx*dt*1000*(1+lv.mid); b.y+=b.vy*dt*1000*(1+lv.bass);
+      if(b.x<0||b.x>1) b.vx*=-1; if(b.y<0||b.y>1) b.vy*=-1;
+      b.x=Math.max(0,Math.min(1,b.x)); b.y=Math.max(0,Math.min(1,b.y));
+    }
+    // render metaballs via radial gradients
+    ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<this.blobs.length;i++){
+      const b=this.blobs[i];
+      const idx=Math.floor((i/this.blobs.length)*data.length*0.5);
+      const mag=data[idx]/255;
+      const cx=b.x*W, cy=b.y*H;
+      const rad=(b.r+mag*0.18)*Math.min(W,H)*(0.8+lv.bass*0.6);
+      const col=colors.colorAt(i,this.blobs.length,0.85,time);
+      const grad=ctx.createRadialGradient(cx,cy,0,cx,cy,rad);
+      grad.addColorStop(0,col);
+      grad.addColorStop(0.4, colors.colorAt(i,this.blobs.length,0.25,time));
+      grad.addColorStop(1,'transparent');
+      if(opts.glow){ ctx.shadowBlur=30*colors.glowOpacity*opts.bloom; ctx.shadowColor=col; }
+      ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over'; ctx.shadowBlur=0;
+  }
+}
+
+/* ---------- BACKGROUND RENDERER ---------- */
+class BackgroundRenderer{
+  constructor(){ this.stars=[]; for(let i=0;i<120;i++) this.stars.push({x:Math.random(),y:Math.random(),s:Math.random()*1.4+0.2, tw:Math.random()*Math.PI*2}); }
+  render(ctx,W,H,mode,time,band){
+    if(mode==='black'){ ctx.fillStyle='#050507'; ctx.fillRect(0,0,W,H); return; }
+    if(mode==='gradient'){
+      const g=ctx.createRadialGradient(W*0.5,H*0.3,0,W*0.5,H*0.3,Math.max(W,H)*0.9);
+      g.addColorStop(0,`hsla(${85+band.bass*30},70%,6%,1)`);
+      g.addColorStop(0.4,'#0A0A0F');
+      g.addColorStop(1,'#050507');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      // subtle mesh blobs
+      const g2=ctx.createRadialGradient(W*0.2,H*0.8,0,W*0.2,H*0.8,W*0.6);
+      g2.addColorStop(0,`hsla(${320+band.treble*20},80%,12%,0.25)`); g2.addColorStop(1,'transparent');
+      ctx.fillStyle=g2; ctx.fillRect(0,0,W,H);
+      return;
+    }
+    if(mode==='stars'){
+      ctx.fillStyle='#050507'; ctx.fillRect(0,0,W,H);
+      for(let s of this.stars){
+        s.tw+=0.02; const a=0.3+Math.sin(s.tw)*0.3+band.treble*0.4;
+        ctx.fillStyle=`rgba(255,255,255,${a})`; ctx.beginPath(); ctx.arc(s.x*W,s.y*H,s.s,0,Math.PI*2); ctx.fill();
+      }
+      return;
+    }
+    if(mode==='grid'){
+      ctx.fillStyle='#050507'; ctx.fillRect(0,0,W,H);
+      ctx.strokeStyle='rgba(212,255,50,0.06)'; ctx.lineWidth=1;
+      const gap=48; const offset=(time*0.02)%gap;
+      for(let x=offset;x<W;x+=gap){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+      for(let y=offset;y<H;y+=gap){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    }
+  }
+}
+
+/* ---------- APP ---------- */
+class App{
+  constructor(){
+    this.canvas=document.getElementById('stage'); this.ctx=this.canvas.getContext('2d'); this.wrap=document.getElementById('canvasWrap');
+    this.miniCanvas=document.getElementById('miniViz'); this.miniCtx=this.miniCanvas.getContext('2d');
+    this.audio=new AudioEngine(); this.colors=new ColorSystem(); this.bg=new BackgroundRenderer();
+    this.audioEl=document.getElementById('audioEl');
+    this.opts={ lerp:0.38, gain:1.2, mirror:false, glow:true, trail:0.18, maxParticles:600, rotSpeed:1.0, reactive:true, bloom:1.0, bgMode:'gradient' };
+    this.vizMode='bars'; this.visualizers=null; this.playing=false; this.lastTime=performance.now(); this.lastRenderTime=this.lastTime;
+    this.fpsShow=false; this._fpsFrames=0; this._fpsLast=performance.now(); this._fpsVal=0;
+    this.mediaRecorder=null; this.recordedChunks=[]; this.recStart=0; this.recTimer=null;
+    this._resize();
+    let _rzT=null;
+    window.addEventListener('resize',()=>{ clearTimeout(_rzT); _rzT=setTimeout(()=>this._resize(),120); });
+    this.audio.onStatus=(live,text)=>this._setStatus(live,text);
+    this._buildViz(); this._bindUI(); this._bindKeys(); this._idleLoop(); this._initIntroCanvas();
+    document.addEventListener('visibilitychange',()=>this._handleVis());
+  }
+  _getSize(){
+    if(document.body.classList.contains('mini-mode')){
+      const r=this.wrap.getBoundingClientRect();
+      return {W:Math.max(160,Math.floor(r.width)), H:Math.max(100,Math.floor(r.height))};
+    }
+    return {W:innerWidth, H:innerHeight};
+  }
+  _resize(){
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    const {W,H}=this._getSize();
+    this.canvas.width=Math.floor(W*dpr); this.canvas.height=Math.floor(H*dpr);
+    if(!document.body.classList.contains('mini-mode')){ this.canvas.style.width=W+'px'; this.canvas.style.height=H+'px'; }
+    else { this.canvas.style.width='100%'; this.canvas.style.height='100%'; }
+    this.ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  _buildViz(){
+    const args=[this.ctx,this.audio,this.colors,this.opts];
+    this.visualizers={ bars:new BarsVisualizer(...args), wave:new WaveVisualizer(...args), particles:new ParticlesVisualizer(...args), radial:new RadialVisualizer(...args), spectrogram:new SpectrogramVisualizer(...args), tunnel:new TunnelVisualizer(...args), flow:new FlowVisualizer(...args) };
+  }
+  _setStatus(live,text){
+    document.getElementById('statusDot').classList.toggle('live',live);
+    document.getElementById('statusText').textContent=text;
+    document.getElementById('audioInfo').textContent=text;
+  }
+  _hideIntro(){ document.getElementById('intro').classList.add('hidden'); }
+  loadFile(file){
+    if(this.audioEl._objectURL) URL.revokeObjectURL(this.audioEl._objectURL);
+    const url=URL.createObjectURL(file); this.audioEl._objectURL=url; this.audioEl.src=url;
+    this.audio.connectFile(this.audioEl); this.audioEl.play(); this.playing=true; document.getElementById('tPlay').textContent='⏸'; const _mp=document.getElementById('miniPlay'); if(_mp) _mp.textContent='⏸'; this._hideIntro(); this._startLoop();
+  }
+  async useMic(){ await this.audio.connectMic(); this._hideIntro(); this._startLoop(); }
+  connectWs(url){ this.audio.connectWebSocket(url); this._hideIntro(); this._startLoop(); }
+  togglePlay(){
+    if(!this.audioEl.src){ document.getElementById('fileInput').click(); return; }
+    this.audio.play();
+    if(this.playing){ this.audioEl.pause(); this.playing=false; document.getElementById('tPlay').textContent='▶'; }
+    else { this.audioEl.play(); this.playing=true; document.getElementById('tPlay').textContent='⏸'; }
+    const mp=document.getElementById('miniPlay'); if(mp) mp.textContent=this.playing?'⏸':'▶';
+  }
+  setVizMode(m){
+    this.vizMode=m;
+    document.querySelectorAll('.mini-btn[data-viz]').forEach(b=>b.classList.toggle('active',b.dataset.viz===m));
+    document.getElementById('modeChip').textContent=m.toUpperCase();
+  }
+  reset(){ this.colors=new ColorSystem(); this.opts={lerp:0.38,gain:1.2,mirror:false,glow:true,trail:0.18,maxParticles:600,rotSpeed:1.0,reactive:true,bloom:1.0,bgMode:'gradient'}; this._buildViz(); this._syncUI(); }
+
+  _looping=false; _startLoop(){ if(this._looping) return; this._looping=true; this._loop(); }
+  _loop(){
+    requestAnimationFrame(()=>this._loop());
+    const now=performance.now(); const dt=Math.min(0.05,(now-this.lastTime)/1000); this.lastTime=now;
+    if(!this.audio.isActive()) return;
+    const {W,H}=this._getSize(); const ctx=this.ctx;
+    const lv=this.audio.getBandLevels();
+    // beat indicator
+    if(this.audio.isBeat && !this._beatFlash){ this._beatFlash=true; const _bi=document.getElementById('beatIndicator'); _bi.classList.add('hit'); setTimeout(()=>{ _bi.classList.remove('hit'); this._beatFlash=false; },110); }
+
+    // background + trail
+    if(this.vizMode!=='spectrogram'){
+      if(this.opts.trail>0.05){
+        ctx.fillStyle=`rgba(5,5,7,${this.opts.trail})`; ctx.fillRect(0,0,W,H);
+        // fond redessine a faible alpha a CHAQUE frame (deterministe => aucun scintillement)
+        ctx.save();
+        ctx.globalAlpha=Math.min(0.22,this.opts.trail*0.7);
+        this.bg.render(ctx,W,H,this.opts.bgMode,now,lv);
+        ctx.restore();
+      } else {
+        this.bg.render(ctx,W,H,this.opts.bgMode,now,lv);
+      }
+    } else {
+      ctx.fillStyle=`rgba(5,5,7,${this.opts.trail})`; ctx.fillRect(0,0,W,H);
+    }
+
+    const viz=this.visualizers[this.vizMode]; if(viz) viz.render(dt,W,H);
+
+    if(this.opts.reactive){ const scale=1+lv.bass*0.035; this.wrap.style.transform=`scale(${scale.toFixed(4)})`; } else this.wrap.style.transform='scale(1)';
+
+    // mini viz
+    this._renderMini(lv);
+    this._updateFPS(now);
+    this._updateProgress();
+  }
+  _renderMini(lv){
+    const c=this.miniCtx, W=180, H=28; c.clearRect(0,0,W,H);
+    const data=this.audio.getFrequencyData(); if(!data) return;
+    const bars=32; const step=Math.floor(data.length*0.4/bars);
+    for(let i=0;i<bars;i++){ const v=data[i*step]/255; const h=v*H; c.fillStyle=this.colors.colorAt(i,bars,0.9,performance.now()); c.fillRect(i*(W/bars),H-h,(W/bars)-1,h); }
+  }
+  _updateFPS(now){
+    this._fpsFrames++; if(now-this._fpsLast>=500){ this._fpsVal=Math.round(this._fpsFrames/((now-this._fpsLast)/1000)); if(this.fpsShow) document.getElementById('fpsChip').textContent=this._fpsVal; else document.getElementById('fpsChip').textContent=this._fpsVal; this._fpsFrames=0; this._fpsLast=now; }
+  }
+  _updateProgress(){
+    if(this.audioEl.duration){ const p=(this.audioEl.currentTime/this.audioEl.duration)*100; document.getElementById('progressFill').style.width=p+'%'; const fmt=s=>{ const m=Math.floor(s/60).toString().padStart(2,'0'); const sc=Math.floor(s%60).toString().padStart(2,'0'); return `${m}:${sc}`; }; document.getElementById('timeLabel').textContent=`${fmt(this.audioEl.currentTime)} / ${fmt(this.audioEl.duration)}`; }
+  }
+  _idleLoop(){
+    const step=()=>{
+      requestAnimationFrame(step); if(this.audio.isActive()) return;
+      const _s=this._getSize(); const ctx=this.ctx, W=_s.W, H=_s.H;
+      this.bg.render(ctx,W,H,this.opts.bgMode,performance.now(),{bass:0.1,mid:0.1,treble:0.1});
+      const t=performance.now()*0.001;
+      for(let i=0;i<80;i++){ const ang=i*0.31+t*0.3; const r=60+Math.sin(t+i*0.1)*30+i*0.6; const x=W/2+Math.cos(ang)*r, y=H/2+Math.sin(ang)*r*0.6; ctx.fillStyle=this.colors.colorAt(i,80,0.35,performance.now()); ctx.beginPath(); ctx.arc(x,y,1.4,0,Math.PI*2); ctx.fill(); }
+    }; step();
+  }
+  _initIntroCanvas(){
+    const c=document.getElementById('introCanvas'); const ctx=c.getContext('2d');
+    const resize=()=>{ c.width=innerWidth*0.8; c.height=innerHeight*0.8; c.style.width=innerWidth+'px'; c.style.height=innerHeight+'px'; };
+    resize(); window.addEventListener('resize',resize);
+    const parts=[]; for(let i=0;i<90;i++) parts.push({x:Math.random(),y:Math.random(),vx:(Math.random()-0.5)*0.0004,vy:(Math.random()-0.5)*0.0004,r:Math.random()*2+0.4});
+    const loop=()=>{
+      requestAnimationFrame(loop); if(document.getElementById('intro').classList.contains('hidden')) return;
+      const W=c.width, H=c.height; ctx.clearRect(0,0,W,H);
+      for(let p of parts){ p.x+=p.vx*16; p.y+=p.vy*16; if(p.x<0||p.x>1) p.vx*=-1; if(p.y<0||p.y>1) p.vy*=-1; const x=p.x*W, y=p.y*H; ctx.fillStyle='rgba(212,255,50,0.35)'; ctx.beginPath(); ctx.arc(x,y,p.r,0,Math.PI*2); ctx.fill(); }
+    }; loop();
+  }
+  _handleVis(){
+    // Lecture en arrière-plan : la musique continue même fenêtre minimisée / onglet caché.
+    // Au retour, on réveille juste le contexte audio si l'OS l'avait suspendu.
+    if(!document.hidden){
+      if(this.backgroundPlay){
+        if(this.audio.ctx && this.audio.ctx.state==='suspended') this.audio.ctx.resume().catch(()=>{});
+        if(this.playing && this.audioEl.src && this.audioEl.paused) this.audioEl.play().catch(()=>{});
+      } else if(this._wasPlaying){ this.audioEl.play().catch(()=>{}); }
+    } else if(!this.backgroundPlay){
+      this._wasPlaying=this.playing; if(this.playing) this.audioEl.pause();
+    }
+  }
+
+  /* EXPORT */
+  async startRecording(){
+    const stream=this.canvas.captureStream(30); this.recordedChunks=[]; this.mediaRecorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9', videoBitsPerSecond:8000000});
+    this.mediaRecorder.ondataavailable=e=>{ if(e.data.size) this.recordedChunks.push(e.data); };
+    this.mediaRecorder.onstop=async()=>{
+      const blob=new Blob(this.recordedChunks,{type:'video/webm'});
+      if(isElectron){
+        const buf=await blob.arrayBuffer(); electronAPI.saveVideo(Buffer.from(buf));
+      } else {
+        const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`gibz-${Date.now()}.webm`; a.click(); URL.revokeObjectURL(url);
+      }
+    };
+    this.mediaRecorder.start(); this.recStart=Date.now();
+    this.recTimer=setInterval(()=>{ const s=Math.floor((Date.now()-this.recStart)/1000); const m=Math.floor(s/60).toString().padStart(2,'0'); const sc=(s%60).toString().padStart(2,'0'); document.getElementById('recTime').textContent=`${m}:${sc}`; },500);
+  }
+  stopRecording(){ if(this.mediaRecorder&&this.mediaRecorder.state!=='inactive') this.mediaRecorder.stop(); clearInterval(this.recTimer); }
+
+  savePreset(name){ const presets=JSON.parse(localStorage.getItem('gibz_v2_presets')||'{}'); presets[name]={color:this.colors.toJSON(),opts:{...this.opts},viz:this.vizMode}; localStorage.setItem('gibz_v2_presets',JSON.stringify(presets)); this._renderPresets(); }
+  loadPreset(name){ const presets=JSON.parse(localStorage.getItem('gibz_v2_presets')||'{}'); const p=presets[name]; if(!p) return; this.colors.fromJSON(p.color); Object.assign(this.opts,p.opts); this.setVizMode(p.viz||'bars'); this._syncUI(); }
+  deletePreset(name){ const presets=JSON.parse(localStorage.getItem('gibz_v2_presets')||'{}'); delete presets[name]; localStorage.setItem('gibz_v2_presets',JSON.stringify(presets)); this._renderPresets(); }
+  _renderPresets(){
+    const presets=JSON.parse(localStorage.getItem('gibz_v2_presets')||'{}'); const list=document.getElementById('presetList'); list.innerHTML='';
+    Object.keys(presets).forEach(name=>{ const d=document.createElement('div'); d.className='preset-item'; d.innerHTML=`<span>${name}</span><span><button data-a="load">▸</button><button data-a="del">✕</button></span>`; d.querySelector('[data-a="load"]').onclick=()=>this.loadPreset(name); d.querySelector('[data-a="del"]').onclick=()=>this.deletePreset(name); list.appendChild(d); });
+  }
+  _syncUI(){
+    const $=id=>document.getElementById(id);
+    $('hueSlider').value=this.colors.hue; $('hueVal').textContent=this.colors.hue+'°';
+    $('satSlider').value=this.colors.sat; $('satVal').textContent=this.colors.sat+'%';
+    $('lightSlider').value=this.colors.light; $('lightVal').textContent=this.colors.light+'%';
+    $('gradStart').value=this.colors.gradStart; $('gradEnd').value=this.colors.gradEnd;
+    $('glowSlider').value=this.colors.glowOpacity; $('glowVal').textContent=this.colors.glowOpacity.toFixed(2);
+    $('colorModeSelect').value=this.colors.mode;
+    $('hslControls').style.display=this.colors.mode==='hsl'?'block':'none';
+    $('gradControls').style.display=this.colors.mode==='gradient'?'block':'none';
+    $('gainSlider').value=this.opts.gain; $('gainVal').textContent=this.opts.gain.toFixed(2);
+    $('lerpSlider').value=this.opts.lerp; $('lerpVal').textContent=this.opts.lerp.toFixed(2);
+    $('trailSlider').value=this.opts.trail; $('trailVal').textContent=this.opts.trail.toFixed(2);
+    $('bloomSlider').value=this.opts.bloom; $('bloomVal').textContent=this.opts.bloom.toFixed(2);
+    $('particleSlider').value=this.opts.maxParticles; $('particleVal').textContent=this.opts.maxParticles;
+    $('rotSlider').value=this.opts.rotSpeed; $('rotVal').textContent=this.opts.rotSpeed.toFixed(1)+'×';
+    $('bgMode').value=this.opts.bgMode;
+    document.querySelectorAll('.mini-btn[data-theme]').forEach(b=>b.classList.toggle('active',b.dataset.theme===this.colors.theme));
+  }
+  _bindUI(){
+    const $=id=>document.getElementById(id);
+    $('btnLoadFile').onclick=()=>$('fileInput').click(); $('pBtnFile').onclick=()=>$('fileInput').click();
+    $('fileInput').onchange=e=>{ if(e.target.files[0]) this.loadFile(e.target.files[0]); };
+    $('btnUseMic').onclick=()=>this.useMic(); $('pBtnMic').onclick=()=>this.useMic();
+    $('btnConnectWs').onclick=()=>{ const u=$('wsUrlInput').value.trim(); if(u) this.connectWs(u); };
+    $('pBtnPlay').onclick=()=>this.togglePlay(); $('tPlay').onclick=()=>this.togglePlay();
+    $('tPrev').onclick=()=>{ this.audioEl.currentTime=Math.max(0,this.audioEl.currentTime-10); };
+    $('tNext').onclick=()=>{ this.audioEl.currentTime=Math.min(this.audioEl.duration||0,this.audioEl.currentTime+10); };
+    $('progressBar').onclick=e=>{ if(!this.audioEl.duration) return; const r=e.currentTarget.getBoundingClientRect(); const p=(e.clientX-r.left)/r.width; this.audioEl.currentTime=p*this.audioEl.duration; };
+
+    // drag drop
+    const dz=$('dropZone'); window.addEventListener('dragover',e=>{e.preventDefault(); dz.classList.add('drag')}); window.addEventListener('dragleave',()=>dz.classList.remove('drag')); window.addEventListener('drop',e=>{ e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files[0]) this.loadFile(e.dataTransfer.files[0]); });
+
+    // sliders
+    $('volSlider').oninput=e=>{ this.audioEl.volume=parseFloat(e.target.value); $('volVal').textContent=Math.round(e.target.value*100)+'%'; };
+    $('rateSlider').oninput=e=>{ this.audioEl.playbackRate=parseFloat(e.target.value); $('rateVal').textContent=parseFloat(e.target.value).toFixed(2)+'×'; };
+    $('fftSelect').onchange=e=>{ this.audio.setFFTSize(parseInt(e.target.value)); $('fftVal').textContent=e.target.value; };
+    $('smoothSlider').oninput=e=>{ this.audio.setSmoothing(parseFloat(e.target.value)); $('smoothVal').textContent=parseFloat(e.target.value).toFixed(2); };
+    $('lerpSlider').oninput=e=>{ this.opts.lerp=parseFloat(e.target.value); $('lerpVal').textContent=this.opts.lerp.toFixed(2); };
+    $('gainSlider').oninput=e=>{ this.opts.gain=parseFloat(e.target.value); $('gainVal').textContent=this.opts.gain.toFixed(2); };
+    $('trailSlider').oninput=e=>{ this.opts.trail=parseFloat(e.target.value); $('trailVal').textContent=this.opts.trail.toFixed(2); };
+    $('bloomSlider').oninput=e=>{ this.opts.bloom=parseFloat(e.target.value); this.colors.bloom=parseFloat(e.target.value); $('bloomVal').textContent=this.opts.bloom.toFixed(2); };
+    $('particleSlider').oninput=e=>{ this.opts.maxParticles=parseInt(e.target.value); $('particleVal').textContent=e.target.value; this.visualizers.particles.setMax(this.opts.maxParticles); };
+    $('rotSlider').oninput=e=>{ this.opts.rotSpeed=parseFloat(e.target.value); $('rotVal').textContent=this.opts.rotSpeed.toFixed(1)+'×'; };
+    $('bgMode').onchange=e=>this.opts.bgMode=e.target.value;
+
+    // viz
+    document.querySelectorAll('.mini-btn[data-viz]').forEach(b=>b.onclick=()=>this.setVizMode(b.dataset.viz));
+    // theme
+    document.querySelectorAll('.mini-btn[data-theme]').forEach(b=>b.onclick=()=>{ this.colors.applyTheme(b.dataset.theme); document.querySelectorAll('.mini-btn[data-theme]').forEach(x=>x.classList.remove('active')); b.classList.add('active'); this._syncUI(); });
+
+    // color
+    $('colorModeSelect').onchange=e=>{ this.colors.mode=e.target.value; $('hslControls').style.display=this.colors.mode==='hsl'?'block':'none'; $('gradControls').style.display=this.colors.mode==='gradient'?'block':'none'; };
+    $('hueSlider').oninput=e=>{ this.colors.hue=parseFloat(e.target.value); $('hueVal').textContent=e.target.value+'°'; };
+    $('satSlider').oninput=e=>{ this.colors.sat=parseFloat(e.target.value); $('satVal').textContent=e.target.value+'%'; };
+    $('lightSlider').oninput=e=>{ this.colors.light=parseFloat(e.target.value); $('lightVal').textContent=e.target.value+'%'; };
+    $('gradStart').oninput=e=>this.colors.gradStart=e.target.value;
+    $('gradEnd').oninput=e=>this.colors.gradEnd=e.target.value;
+    $('glowSlider').oninput=e=>{ this.colors.glowOpacity=parseFloat(e.target.value); $('glowVal').textContent=this.colors.glowOpacity.toFixed(2); };
+
+    // toggles
+    $('mirrorToggle').onclick=e=>{ this.opts.mirror=!this.opts.mirror; e.currentTarget.classList.toggle('on',this.opts.mirror); };
+    $('vignetteToggle').onclick=e=>{ const on=e.currentTarget.classList.toggle('on'); document.getElementById('vignette').style.opacity=on?'0.8':'0'; };
+    $('scanToggle').onclick=e=>{ const on=e.currentTarget.classList.toggle('on'); document.getElementById('scanlines').style.opacity=on?'0.35':'0'; };
+    $('reactiveToggle').onclick=e=>{ this.opts.reactive=!this.opts.reactive; e.currentTarget.classList.toggle('on',this.opts.reactive); };
+    $('fpsToggle').onclick=e=>{ this.fpsShow=!this.fpsShow; e.currentTarget.classList.toggle('on',this.fpsShow); };
+    $('beatToggle').onclick=e=>{ this.audio.beatEnabled=!this.audio.beatEnabled; e.currentTarget.classList.toggle('on',this.audio.beatEnabled); };
+    $('bgPlayToggle').onclick=e=>{ this.backgroundPlay=!this.backgroundPlay; e.currentTarget.classList.toggle('on',this.backgroundPlay); };
+
+    // tabs
+    document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); tab.classList.add('active'); document.querySelectorAll('.tab-content').forEach(c=>c.style.display='none'); document.querySelector(`.tab-content[data-tab="${tab.dataset.tab}"]`).style.display='flex'; });
+
+    // panel collapse
+    const panel=$('panel'), toggleBtn=$('togglePanel');
+    $('btnCollapse').onclick=()=>panel.classList.toggle('collapsed');
+    toggleBtn.onclick=()=>panel.classList.toggle('collapsed');
+
+    // mini mode + PiP OS
+    $('btnMiniMode').onclick=()=>toggleMiniMode();
+    $('btnPipOS').onclick=()=>enterOSPiP();
+    $('miniExpand').onclick=(e)=>{ e.stopPropagation(); toggleMiniMode(false); };
+    $('miniPlay').onclick=(e)=>{ e.stopPropagation(); this.togglePlay(); $('miniPlay').textContent=this.playing?'⏸':'▶'; };
+    $('miniPip').onclick=(e)=>{ e.stopPropagation(); enterOSPiP(); };
+
+    // export
+    $('btnSavePreset').onclick=()=>{ const n=prompt('Nom du preset :'); if(n) this.savePreset(n); };
+    $('btnFullscreen').onclick=()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); };
+    $('btnReset').onclick=()=>this.reset();
+    $('btnScreenshot').onclick=()=>{
+      const url=this.canvas.toDataURL('image/png');
+      if(isElectron){ fetch(url).then(r=>r.arrayBuffer()).then(b=>electronAPI.saveImage(Buffer.from(b))); }
+      else { const a=document.createElement('a'); a.href=url; a.download=`gibz-${Date.now()}.png`; a.click(); }
+    };
+    $('btnRecord').onclick=()=>{ this.startRecording(); $('btnRecord').style.display='none'; $('btnStopRecord').style.display='block'; $('recIndicator').style.display='flex'; };
+    $('btnStopRecord').onclick=()=>{ this.stopRecording(); $('btnRecord').style.display='block'; $('btnStopRecord').style.display='none'; $('recIndicator').style.display='none'; };
+    this._renderPresets(); this._syncUI();
+  }
+  _bindKeys(){
+    window.addEventListener('keydown',e=>{
+      if(e.target.tagName==='INPUT') return;
+      if(e.code==='Space'){ e.preventDefault(); this.togglePlay(); }
+      else if(e.key>='1'&&e.key<='7'){ const modes=['bars','wave','particles','radial','spectrogram','tunnel','flow']; this.setVizMode(modes[parseInt(e.key)-1]); }
+      else if(e.key.toLowerCase()==='r') this.reset();
+      else if(e.key.toLowerCase()==='f'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); }
+      else if(e.key.toLowerCase()==='m'){ toggleMiniMode(); }
+      else if(e.key==='Escape'){ if(document.body.classList.contains('mini-mode')) toggleMiniMode(false); }
+      else if(e.key==='Tab'){ e.preventDefault(); document.getElementById('panel').classList.toggle('collapsed'); }
+    });
+    this.audioEl.addEventListener('ended',()=>{ this.playing=false; document.getElementById('tPlay').textContent='▶'; });
+  }
+}
+/* ---------- MINI MODE : petite fenêtre flottante sans bordure ---------- */
+let _miniPrevRect=null;
+function toggleMiniMode(force){
+  const body=document.body;
+  const want = (typeof force==='boolean') ? force : !body.classList.contains('mini-mode');
+  const wrap=document.getElementById('canvasWrap');
+  const fx=document.getElementById('overlayFX');
+  if(want){
+    _miniPrevRect={left:wrap.style.left,top:wrap.style.top,width:wrap.style.width,height:wrap.style.height};
+    body.classList.add('mini-mode');
+    // centre la mini fenêtre si première ouverture
+    if(!wrap.dataset.miniPlaced){
+      const w=Math.min(560,Math.floor(innerWidth*0.42)), h=Math.floor(w*9/16);
+      wrap.style.width=w+'px'; wrap.style.height=h+'px';
+      wrap.style.left=Math.floor((innerWidth-w)/2)+'px'; wrap.style.top=Math.floor((innerHeight-h)/2)+'px';
+      wrap.dataset.miniPlaced='1';
+    }
+    // rattache les effets (vignette/scanlines) à la mini fenêtre
+    if(fx && fx.parentElement!==wrap){ wrap.appendChild(fx); fx.classList.add('mini-attached'); }
+    if(isElectron && window.electronAPI && electronAPI.setMiniMode){ try{electronAPI.setMiniMode(true);}catch(e){} }
+    document.getElementById('miniPlay').textContent=(app&&app.playing)?'⏸':'▶';
+  } else {
+    body.classList.remove('mini-mode');
+    wrap.style.left=''; wrap.style.top=''; wrap.style.width=''; wrap.style.height='';
+    wrap.style.transform='scale(1)';
+    if(fx && fx.classList.contains('mini-attached')){ fx.classList.remove('mini-attached'); fx.style.cssText=''; document.body.insertBefore(fx, document.getElementById('titlebar')); }
+    if(isElectron && window.electronAPI && electronAPI.setMiniMode){ try{electronAPI.setMiniMode(false);}catch(e){} }
+  }
+  requestAnimationFrame(()=>{ if(window.app) app._resize(); });
+}
+
+/* Drag + Resize de la mini fenêtre */
+(function initMiniDragResize(){
+  const wrap=document.getElementById('canvasWrap');
+  const handle=document.getElementById('miniResize');
+  let dragging=false, resizing=false, sx=0, sy=0, ox=0, oy=0, ow=0, oh=0;
+  wrap.addEventListener('mousedown',e=>{
+    if(!document.body.classList.contains('mini-mode')) return;
+    if(e.target.closest('#miniToolbar') || e.target.closest('#miniResize')) return;
+    dragging=true; sx=e.clientX; sy=e.clientY;
+    const r=wrap.getBoundingClientRect(); ox=r.left; oy=r.top;
+    e.preventDefault();
+  });
+  handle.addEventListener('mousedown',e=>{
+    if(!document.body.classList.contains('mini-mode')) return;
+    resizing=true; sx=e.clientX; sy=e.clientY;
+    const r=wrap.getBoundingClientRect(); ow=r.width; oh=r.height; ox=r.left; oy=r.top;
+    e.stopPropagation(); e.preventDefault();
+  });
+  window.addEventListener('mousemove',e=>{
+    if(dragging){
+      let nx=ox+(e.clientX-sx), ny=oy+(e.clientY-sy);
+      nx=Math.max(-50,Math.min(innerWidth-80,nx)); ny=Math.max(0,Math.min(innerHeight-40,ny));
+      wrap.style.left=nx+'px'; wrap.style.top=ny+'px';
+    } else if(resizing){
+      const nw=Math.max(200,Math.min(innerWidth,ow+(e.clientX-sx)));
+      const nh=Math.max(120,Math.min(innerHeight,oh+(e.clientY-sy)));
+      wrap.style.width=nw+'px'; wrap.style.height=nh+'px';
+      if(window.app) app._resize();
+    }
+  });
+  window.addEventListener('mouseup',()=>{ const wasRz=resizing; dragging=false; resizing=false; if(wasRz){ clearTimeout(_miniRzT); if(window.app) window.app._resize(); } });
+  // double-clic = quitter le mode mini
+  wrap.addEventListener('dblclick',e=>{
+    if(!document.body.classList.contains('mini-mode')) return;
+    if(e.target.closest('#miniToolbar')) return;
+    toggleMiniMode(false);
+  });
+  // molette + Ctrl sur la mini = redimensionne en gardant le ratio
+  wrap.addEventListener('wheel',e=>{
+    if(!document.body.classList.contains('mini-mode')) return;
+    if(!e.ctrlKey) return;
+    e.preventDefault();
+    const r=wrap.getBoundingClientRect();
+    const factor=e.deltaY<0?1.06:0.94;
+    const nw=Math.max(200,Math.min(innerWidth,r.width*factor));
+    const nh=Math.max(120,Math.min(innerHeight,r.height*factor));
+    wrap.style.width=nw+'px'; wrap.style.height=nh+'px';
+    scheduleMiniResize();
+  },{passive:false});
+})();
+
+/* ---------- Picture-in-Picture OS : vraie petite fenêtre système ---------- */
+async function enterOSPiP(){
+  try{
+    const canvas=document.getElementById('stage');
+    let video=document.getElementById('pipVideo');
+    if(document.pictureInPictureElement){ await document.exitPictureInPicture(); return; }
+    const stream=canvas.captureStream(30);
+    video.srcObject=stream;
+    video.muted=true;
+    await video.play().catch(()=>{});
+    if(video.requestPictureInPicture){
+      await video.requestPictureInPicture();
+    } else {
+      alert('Picture-in-Picture non supporté par ce navigateur. Utilisez Chrome ou Edge.');
+    }
+  }catch(err){
+    console.warn('PiP:',err);
+    alert('Impossible d\'ouvrir la fenêtre flottante OS : '+err.message);
+  }
+}
+
+const app=new App();
+window.app=app;
+if(isElectron){
+  electronAPI.onOpenFile((filePath, buffer)=>{
+    const blob=new Blob([buffer]); const file=new File([blob], filePath.split(/[\\/]/).pop());
+    app.loadFile(file);
+  });
+}
+</script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a396efa3eee3a1a9',t:'MTc4OTEzMjQ3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
+/[\\/]/).pop());
+    app.loadFile(file);
+  });
+}
+</script>
+</body>
+</html>
+y>
+</html>

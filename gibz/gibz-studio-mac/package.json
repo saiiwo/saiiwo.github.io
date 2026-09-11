@@ -1,0 +1,90 @@
+{
+  "name": "gibz-studio",
+  "productName": "GIBZ Studio",
+  "version": "2.0.0",
+  "description": "GIBZ Studio — visualiseur audio réactif",
+  "main": "main.js",
+  "author": "GIBZ",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac --universal",
+    "dist:mac-silicon": "electron-builder --mac --arm64",
+    "dist:mac-intel": "electron-builder --mac --x64"
+  },
+  "devDependencies": {
+    "electron": "latest",
+    "electron-builder": "latest"
+  },
+  "build": {
+    "appId": "com.gibz.studio",
+    "productName": "GIBZ Studio",
+    "copyright": "Copyright © 2026 GIBZ",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "assets/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.music",
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "GIBZ Studio utilise le micro pour générer des visuels réactifs en temps réel."
+      },
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "GIBZ Studio",
+      "icon": "build/icon.icns"
+    },
+    "fileAssociations": [
+      {
+        "ext": ["mp3"],
+        "name": "Audio MP3",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["wav"],
+        "name": "Audio WAV",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["flac"],
+        "name": "Audio FLAC",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["ogg"],
+        "name": "Audio OGG",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["m4a"],
+        "name": "Audio M4A",
+        "role": "Viewer"
+      }
+    ]
+  }
+}
